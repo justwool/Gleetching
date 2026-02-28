@@ -1,8 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+type GenericClient = Record<string, any>;
 
-const mock = new Proxy(
+const globalForPrisma = globalThis as unknown as { prisma?: GenericClient };
+
+const mock: GenericClient = new Proxy(
   {},
   {
     get() {
@@ -24,12 +27,14 @@ const mock = new Proxy(
   }
 );
 
-let prismaClient: PrismaClient | typeof mock;
+let prismaClient: GenericClient;
 try {
-  prismaClient = globalForPrisma.prisma ?? new PrismaClient({ log: ['error'] });
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaClient as PrismaClient;
+  const runtime = require('@prisma/client') as { PrismaClient?: new (...args: any[]) => GenericClient };
+  if (!runtime.PrismaClient) throw new Error('missing PrismaClient');
+  prismaClient = globalForPrisma.prisma ?? new runtime.PrismaClient({ log: ['error'] });
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaClient;
 } catch {
   prismaClient = mock;
 }
 
-export const prisma = prismaClient as PrismaClient;
+export const prisma = prismaClient;

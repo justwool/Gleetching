@@ -48,5 +48,4 @@ Production-ready Next.js 14 App Router art portfolio designed as a dense termina
 - CRT intensity: OFF / LOW / HIGH
 - Optional sound cue toggle (persisted in localStorage)
 - Thumbs ON/OFF in collection scan
-- poop
 
