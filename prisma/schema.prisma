@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  ident       String   @unique
+  title       String
+  description String?
+  year        Int
+  tags        String[]
+  accentColor String   @default("#8eb8b8")
+  dividerSet  String   @default("pipe")
+  headerStyle String   @default("stack")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pieces      Piece[]
+}
+
+model Piece {
+  id          String   @id @default(cuid())
+  pieceId     String   @unique
+  serial      String   @unique
+  title       String
+  createdAt   DateTime @default(now())
+  capturedAt  DateTime
+  collectionId String
+  viewerUrl   String
+  thumbUrl    String
+  pngUrl      String
+  width       Int
+  height      Int
+  checksum    String
+  collection  Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId, capturedAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+
+model SiteSettings {
+  id         Int      @id @default(1)
+  figletFont String   @default("Small")
+  updatedAt  DateTime @updatedAt
+}
