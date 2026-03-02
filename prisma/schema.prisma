@@ -19,6 +19,7 @@ model Collection {
   accentColor String   @default("#8eb8b8")
   dividerSet  String   @default("pipe")
   headerStyle String   @default("stack")
+  figletFont  String   @default("Small")
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

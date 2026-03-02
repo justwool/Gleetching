@@ -9,7 +9,7 @@ export default async function PiecePage({ params }: { params: { id: string } }) 
   if (!piece) return notFound();
 
   return (
-    <section className="frame"><ChromeContextSync accentColor={piece.collection.accentColor} dividerSet={piece.collection.dividerSet} contextLabel={`${piece.collection.ident}:${piece.collection.title}`} contextHref={`/collection/${piece.collection.slug}`} />
+    <section className="frame"><ChromeContextSync accentColor={piece.collection.accentColor} dividerSet={piece.collection.dividerSet} contextLabel={`${piece.collection.ident}:${piece.collection.title}`} contextHref={`/collection/${piece.collection.slug}`} figletFont={piece.collection.figletFont} />
       <p>inspection:// {piece.title}</p>
       <p>pieceId {piece.pieceId}</p>
       <p>serial {piece.serial}</p>
@@ -19,7 +19,7 @@ export default async function PiecePage({ params }: { params: { id: string } }) 
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <Link href={`/collection/${piece.collection.slug}`}>prev directory</Link>
-        <Link href={`/viewer/${piece.collection.slug}?piece=${piece.pieceId}&ds=${piece.collection.dividerSet}&ac=${encodeURIComponent(piece.collection.accentColor)}&ctx=${encodeURIComponent(`${piece.collection.ident}:${piece.collection.title}`)}`}>open viewer</Link>
+        <Link href={`/viewer/${piece.collection.slug}?piece=${piece.pieceId}&ds=${piece.collection.dividerSet}&ac=${encodeURIComponent(piece.collection.accentColor)}&ctx=${encodeURIComponent(`${piece.collection.ident}:${piece.collection.title}`)}&ff=${encodeURIComponent(piece.collection.figletFont)}`}>open viewer</Link>
       </div>
     </section>
   );

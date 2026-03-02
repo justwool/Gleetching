@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/auth';
-import { SAFE_FONTS } from '@/lib/chrome/figletWordmark';
+import { SAFE_FONTS } from '@/lib/chrome/fonts';
 
 export async function GET() {
   if (!(await requireSession())) return NextResponse.json({ ok: false }, { status: 401 });

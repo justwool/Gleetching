@@ -7,7 +7,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 type Piece = { id: string; pieceId: string; serial: string; title: string; capturedAt: Date | string; thumbUrl: string };
 
-export function CollectionScan({ pieces, slug, dividerSet, accentColor, contextLabel }: { pieces: Piece[]; slug: string; dividerSet: string; accentColor: string; contextLabel: string }) {
+export function CollectionScan({ pieces, slug, dividerSet, accentColor, contextLabel, figletFont }: { pieces: Piece[]; slug: string; dividerSet: string; accentColor: string; contextLabel: string; figletFont: string }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(0);
   const [showThumbs, setShowThumbs] = useState(true);
@@ -57,7 +57,7 @@ export function CollectionScan({ pieces, slug, dividerSet, accentColor, contextL
           })}
         </div>
       </div>
-      <Link href={`/viewer/${slug}?index=${cursor}&ds=${dividerSet}&ac=${encodeURIComponent(accentColor)}&ctx=${encodeURIComponent(contextLabel)}`} className="viewerlink">open viewer</Link>
+      <Link href={`/viewer/${slug}?index=${cursor}&ds=${dividerSet}&ac=${encodeURIComponent(accentColor)}&ctx=${encodeURIComponent(contextLabel)}&ff=${encodeURIComponent(figletFont)}`} className="viewerlink">open viewer</Link>
     </section>
   );
 }

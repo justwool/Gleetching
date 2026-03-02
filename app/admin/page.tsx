@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { SAFE_FONTS } from '@/lib/chrome/figletWordmark';
+import { SAFE_FONTS } from '@/lib/chrome/fonts';
 
 type Collection = { id: string; ident: string; title: string; slug: string };
 
@@ -107,6 +107,7 @@ export default function AdminPage() {
         <input name="accentColor" placeholder="#8eb8b8" />
         <select name="dividerSet"><option>pipe</option><option>hatch</option><option>double</option><option>dot</option></select>
         <select name="headerStyle"><option>stack</option><option>field</option><option>relay</option></select>
+        <select name="figletFont"><option>Small</option><option>Standard</option><option>Slant</option><option>Big</option><option>Mini</option></select>
         <button type="submit">create collection</button>
       </form>
       <form onSubmit={submitUpload}>

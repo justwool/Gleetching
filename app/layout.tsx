@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { SystemChrome } from '@/components/system-chrome';
+import { SystemChromeServer } from '@/components/system-chrome-server';
 import { SoundCue } from '@/components/sound';
 
 export const metadata: Metadata = {
@@ -16,10 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-crt="LOW">
       <body>
-        <SystemChrome>
+        <SystemChromeServer>
           <SoundCue />
           {children}
-        </SystemChrome>
+        </SystemChromeServer>
       </body>
     </html>
   );

@@ -6,7 +6,7 @@ import { ChromeContextSync } from '@/components/chrome/chrome-context-sync';
 
 type Item = { pieceId: string; title: string; viewerUrl: string; serial: string };
 
-export default function ViewerPage({ params, searchParams }: { params: { slug: string }; searchParams: { index?: string; piece?: string; ds?: string; ac?: string; ctx?: string } }) {
+export default function ViewerPage({ params, searchParams }: { params: { slug: string }; searchParams: { index?: string; piece?: string; ds?: string; ac?: string; ctx?: string; ff?: string } }) {
   const [items, setItems] = useState<Item[]>([]);
   const [index, setIndex] = useState(Number(searchParams.index ?? 0));
 
@@ -35,6 +35,7 @@ export default function ViewerPage({ params, searchParams }: { params: { slug: s
         dividerSet={searchParams.ds}
         contextLabel={searchParams.ctx ? decodeURIComponent(searchParams.ctx) : params.slug}
         contextHref={`/collection/${params.slug}`}
+        figletFont={searchParams.ff}
       />
       <div className="viewer-frame">
         <Image src={current.viewerUrl} alt={current.title} width={1024} height={768} unoptimized style={{ width: '100%', height: 'auto' }} />

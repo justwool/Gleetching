@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/auth';
 import { slugify } from '@/lib/utils';
+import { normalizeFont } from '@/lib/chrome/fonts';
 
 export async function POST(req: Request) {
   if (!(await requireSession())) return NextResponse.json({ ok: false }, { status: 401 });
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
       accentColor: data.accentColor || '#8eb8b8',
       dividerSet: data.dividerSet || 'pipe',
       headerStyle: data.headerStyle || 'stack',
+      figletFont: normalizeFont(data.figletFont),
       order: (max?.order ?? 0) + 1
     }
   });

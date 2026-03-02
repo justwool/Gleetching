@@ -65,6 +65,17 @@ a { color: inherit; text-decoration: none; }
   line-height: 1;
   white-space: pre;
 }
+
+.wordmarkVariant { display: none; }
+.wordmarkWide { display: block; }
+@media (max-width: 899px) {
+  .wordmarkWide { display: none; }
+  .wordmarkMid { display: block; }
+}
+@media (max-width: 549px) {
+  .wordmarkMid { display: none; }
+  .wordmarkNarrow { display: block; }
+}
 .chrome-line { display: block; white-space: pre; overflow: hidden; text-overflow: clip; }
 .chrome-run { white-space: pre; }
 .chrome-link { text-decoration: none; color: inherit; }
