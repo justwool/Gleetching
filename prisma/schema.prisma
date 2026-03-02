@@ -50,3 +50,10 @@ model Session {
   createdAt DateTime @default(now())
   expiresAt DateTime
 }
+
+
+model SiteSettings {
+  id         Int      @id @default(1)
+  figletFont String   @default("Small")
+  updatedAt  DateTime @updatedAt
+}

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { renderBottomStrip, renderTopBanner, type ChromeContextState, type Run } from '@/lib/chrome/banner';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { renderBottomStrip, type Run } from '@/lib/chrome/banner';
+import { renderWordmark } from '@/lib/chrome/figletWordmark';
 
 type Props = { children: React.ReactNode };
 
@@ -24,6 +25,12 @@ const routeMap: Record<string, { full: string; short: string }> = {
   '/admin': { full: 'admin/transfer', short: 'ADM' }
 };
 
+function viewportBucket(width: number) {
+  if (width < 550) return 40;
+  if (width < 900) return 55;
+  return 80;
+}
+
 function RunLine({ runs }: { runs: Run[] }) {
   return (
     <div className="chrome-line">
@@ -43,10 +50,10 @@ export function SystemChrome({ children }: Props) {
   const pathname = usePathname();
   const [clock, setClock] = useState('00:00:00');
   const [status, setStatus] = useState('State stable');
-  const [cols, setCols] = useState(120);
   const [ctx, setCtx] = useState<ContextPatch>({});
-  const topWrapRef = useRef<HTMLDivElement>(null);
-  const probeRef = useRef<HTMLSpanElement>(null);
+  const [bucket, setBucket] = useState(40);
+  const [font, setFont] = useState('Small');
+  const [wordmarkLines, setWordmarkLines] = useState<string[]>(['[ gleetching ]']);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date().toLocaleTimeString('en-GB', { hour12: false })), 1000);
@@ -54,27 +61,28 @@ export function SystemChrome({ children }: Props) {
   }, []);
 
   useEffect(() => {
-    const measure = () => {
-      const wrap = topWrapRef.current;
-      const probe = probeRef.current;
-      if (!wrap || !probe) return;
-      const containerWidthPx = wrap.getBoundingClientRect().width;
-      const probeWidthPx = probe.getBoundingClientRect().width;
-      const charWidthPx = probeWidthPx > 0 ? probeWidthPx / 10 : 8;
-      setCols(Math.max(32, Math.floor(containerWidthPx / Math.max(charWidthPx, 1))));
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (topWrapRef.current) observer.observe(topWrapRef.current);
-    document.fonts?.ready.then(measure).catch(() => null);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
+    const applyBucket = () => setBucket(viewportBucket(window.innerWidth));
+    applyBucket();
+    window.addEventListener('resize', applyBucket);
+    return () => window.removeEventListener('resize', applyBucket);
   }, []);
+
+  useEffect(() => {
+    fetch('/api/site-settings')
+      .then((res) => res.json())
+      .then((payload) => setFont(payload.figletFont || 'Small'))
+      .catch(() => setFont('Small'));
+
+    const onFontChange = ((event: CustomEvent<{ figletFont: string }>) => {
+      setFont(event.detail.figletFont);
+    }) as EventListener;
+    window.addEventListener('figlet-font-change', onFontChange);
+    return () => window.removeEventListener('figlet-font-change', onFontChange);
+  }, []);
+
+  useEffect(() => {
+    setWordmarkLines(renderWordmark({ text: 'gleetching', font, maxCols: bucket }).lines);
+  }, [font, bucket]);
 
   useEffect(() => {
     setStatus(notes[Math.floor(Math.random() * notes.length)]);
@@ -98,26 +106,40 @@ export function SystemChrome({ children }: Props) {
     return undefined;
   }, [ctx.contextHref, pathname]);
 
-  const chromeState: ChromeContextState = {
-    routeLabel: routeInfo.full,
-    shortRoute: routeInfo.short,
-    contextLabel: ctx.contextLabel ?? (pathname === '/' ? 'ROOT' : 'UPLINK'),
-    contextHref,
-    dividerSet: ctx.dividerSet,
-    status,
-    time: clock
-  };
-
-  const top = renderTopBanner(cols, chromeState);
-  const bottom = renderBottomStrip(cols, pathname.startsWith('/viewer/'));
+  const compact = bucket === 40;
+  const bottom = renderBottomStrip(bucket, pathname.startsWith('/viewer/'));
 
   return (
     <ChromeCtx.Provider value={{ setContext }}>
       <div className="chrome-shell" style={{ ['--chrome-accent' as string]: ctx.accentColor ?? '#8eb8b8' }}>
-        <header className={`chrome-top glyph-${top.glyphSet}`}>
-          <div className="chrome-lines-wrap" ref={topWrapRef}>
-            <span className="chrome-probe" ref={probeRef} aria-hidden>MMMMMMMMMM</span>
-            {top.lines.map((line, idx) => <RunLine key={`top-${idx}`} runs={line} />)}
+        <header className="chrome-top">
+          <div className="chrome-top-grid">
+            <div className="chrome-left">
+              <Link href="/" className="chrome-link chrome-accent">{compact ? '[DIR]' : '[ARCHIVE/DIR]'}</Link>
+            </div>
+            <div className="chrome-center">
+              <div className="chrome-line">
+                <Link href="/" className="chrome-link chrome-accent">GLEETCHING</Link>
+                <span className="chrome-run chrome-dim"> ░ </span>
+                <span className="chrome-run chrome-plain">{compact ? routeInfo.short : routeInfo.full}</span>
+                <span className="chrome-run chrome-dim"> ░ </span>
+                {contextHref ? <Link href={contextHref} className="chrome-link chrome-accent">{ctx.contextLabel ?? 'UPLINK'}</Link> : <span className="chrome-run chrome-plain">{ctx.contextLabel ?? 'ROOT'}</span>}
+              </div>
+              <div className="chrome-line">
+                <Link href="/about" className="chrome-link chrome-accent">{compact ? 'ABT' : 'ABOUT'}</Link>
+                <span className="chrome-run chrome-dim"> · </span>
+                <Link href="/contact" className="chrome-link chrome-accent">{compact ? 'CNTCT' : 'CONTACT'}</Link>
+                <span className="chrome-run chrome-dim"> · </span>
+                <Link href="/admin" className="chrome-link chrome-accent">{compact ? 'ADM' : 'ADMIN'}</Link>
+                <span className="chrome-run chrome-dim"> ░ </span>
+                <span className="chrome-run chrome-plain">{clock}</span>
+                <span className="chrome-run chrome-dim"> ░ </span>
+                <span className="chrome-run chrome-plain">{status}</span>
+              </div>
+            </div>
+            <div className="wordmarkSlot" aria-live="polite">
+              <pre>{wordmarkLines.join('\n')}</pre>
+            </div>
           </div>
         </header>
         <main className="mainpane">{children}</main>

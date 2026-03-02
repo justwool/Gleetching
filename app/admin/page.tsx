@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { SAFE_FONTS } from '@/lib/chrome/figletWordmark';
 
 type Collection = { id: string; ident: string; title: string; slug: string };
 
@@ -9,6 +10,7 @@ export default function AdminPage() {
   const [auth, setAuth] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [log, setLog] = useState<string[]>(['transfer utility booted']);
+  const [figletFont, setFigletFont] = useState<string>('Small');
 
   const append = (line: string) => setLog((lines) => [line, ...lines].slice(0, 100));
 
@@ -18,6 +20,11 @@ export default function AdminPage() {
       const payload = await cols.json();
       setCollections(payload.items ?? []);
       setAuth(true);
+      const settings = await fetch('/api/admin/site-settings');
+      if (settings.ok) {
+        const settingPayload = await settings.json();
+        setFigletFont(settingPayload.figletFont || 'Small');
+      }
     }
   };
 
@@ -58,6 +65,21 @@ export default function AdminPage() {
     if (res.ok) e.currentTarget.reset();
   };
 
+  const updateFont = async (nextFont: string) => {
+    setFigletFont(nextFont);
+    const res = await fetch('/api/admin/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ figletFont: nextFont })
+    });
+    if (!res.ok) {
+      append('ERR font update failed');
+      return;
+    }
+    append(`OK figlet font set ${nextFont}`);
+    window.dispatchEvent(new CustomEvent('figlet-font-change', { detail: { figletFont: nextFont } }));
+  };
+
   return (
     <section className="frame">
       <p>admin:// terminal transfer utility</p>
@@ -67,6 +89,16 @@ export default function AdminPage() {
           <button onClick={login}>authorize</button>
         </div>
       ) : null}
+
+      {auth ? (
+        <div style={{ margin: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label htmlFor="figletFont">FIGlet Wordmark Font</label>
+          <select id="figletFont" value={figletFont} onChange={(e) => updateFont(e.target.value)}>
+            {SAFE_FONTS.map((font) => <option key={font} value={font}>{font}</option>)}
+          </select>
+        </div>
+      ) : null}
+
       <form onSubmit={submitCollection}>
         <input name="ident" placeholder="ident" required />
         <input name="title" placeholder="title" required />
