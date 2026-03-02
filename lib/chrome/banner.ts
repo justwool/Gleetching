@@ -8,19 +8,18 @@ export type ChromeContextState = {
   dividerSet?: string;
 };
 
-export type BannerSegment = {
-  key: string;
-  href: string;
-  row: number;
-  colStart: number;
-  colEnd: number;
+export type Run = {
+  text: string;
+  href?: string;
+  kind?: 'accent' | 'dim' | 'plain';
 };
 
-export type BannerRender = {
-  lines: string[];
-  segments: BannerSegment[];
+export type Banner = {
   glyphSet: 'pipe' | 'hatch' | 'double';
+  lines: Run[][];
 };
+
+type Glyph = { h: string; v: string; tl: string; tr: string; bl: string; br: string; fill: string; spark: string };
 
 const glyphByDivider = (dividerSet?: string): 'pipe' | 'hatch' | 'double' => {
   if (dividerSet === 'hatch' || dividerSet === 'dot') return 'hatch';
@@ -28,112 +27,174 @@ const glyphByDivider = (dividerSet?: string): 'pipe' | 'hatch' | 'double' => {
   return 'pipe';
 };
 
-const symbols = {
+const symbols: Record<'pipe' | 'hatch' | 'double', Glyph> = {
   pipe: { h: '─', v: '│', tl: '┌', tr: '┐', bl: '└', br: '┘', fill: '░', spark: '◊' },
   hatch: { h: '═', v: '║', tl: '╔', tr: '╗', bl: '╚', br: '╝', fill: '▒', spark: '¤' },
   double: { h: '━', v: '┃', tl: '┏', tr: '┓', bl: '┗', br: '┛', fill: '▓', spark: '◆' }
 };
 
-const fit = (value: string, max: number) => (value.length > max ? `${value.slice(0, Math.max(1, max - 1))}…` : value.padEnd(max, ' '));
-
-const segmentFor = (line: string, token: string, key: string, href: string, row: number): BannerSegment | null => {
-  const colStart = line.indexOf(token);
-  if (colStart < 0) return null;
-  return { key, href, row, colStart, colEnd: colStart + token.length };
+const trunc = (value: string, max: number) => {
+  if (max <= 0) return '';
+  if (value.length <= max) return value;
+  if (max === 1) return '…';
+  return `${value.slice(0, max - 1)}…`;
 };
 
-export function renderTopBanner(width: number, state: ChromeContextState): BannerRender {
+const fitRuns = (runs: Run[], cols: number): Run[] => {
+  const out: Run[] = [];
+  let used = 0;
+  for (const run of runs) {
+    if (used >= cols) break;
+    const remaining = cols - used;
+    const text = run.text.length <= remaining ? run.text : trunc(run.text, remaining);
+    if (text.length > 0) {
+      out.push({ ...run, text });
+      used += text.length;
+    }
+  }
+  if (used < cols) out.push({ text: ' '.repeat(cols - used), kind: 'plain' });
+  return out;
+};
+
+const lineText = (left: string, innerRuns: Run[], right: string, cols: number) => {
+  const innerCols = Math.max(cols - left.length - right.length, 0);
+  const fitted = fitRuns(innerRuns, innerCols);
+  return fitRuns([{ text: left, kind: 'dim' }, ...fitted, { text: right, kind: 'dim' }], cols);
+};
+
+const framedBar = (glyph: Glyph, cols: number, leftTag: string, rightTag = ''): Run[] => {
+  const inner = Math.max(cols - 2, 0);
+  const label = `${leftTag}${rightTag ? ` ${rightTag}` : ''}`;
+  const base = `${glyph.spark}${glyph.fill}${label}${glyph.fill}${glyph.spark}`;
+  const text = trunc(base, inner);
+  const fill = glyph.h.repeat(Math.max(inner - text.length, 0));
+  return fitRuns([{ text: glyph.tl, kind: 'dim' }, { text: text + fill, kind: 'dim' }, { text: glyph.tr, kind: 'dim' }], cols);
+};
+
+export function renderTopBanner(cols: number, state: ChromeContextState): Banner {
+  const safeCols = Math.max(cols, 32);
   const glyphSet = glyphByDivider(state.dividerSet);
   const g = symbols[glyphSet];
-  const segments: BannerSegment[] = [];
+  const narrow = safeCols <= 48;
+  const mid = safeCols <= 92;
 
-  if (width < 540) {
-    const route = fit(state.shortRoute, 5);
-    const ctx = fit(state.contextLabel || 'ROOT', 14);
-    const l1 = `${g.tl}${g.h.repeat(9)}[DIR]${g.h.repeat(10)}${g.tr}`;
-    const l2 = `${g.v} GLEETCHING ${g.spark} ${route} ${g.fill} ${ctx} ${g.v}`;
-    const l3 = `${g.v} ${fit(state.time, 8)} ${g.fill} ${fit(state.status, 17)} ${g.v}`;
-    const l4 = `${g.bl}${g.h.repeat(Math.max(l1.length - 2, 2))}${g.br}`;
-    const lines = [l1, fit(l2, l1.length), fit(l3, l1.length), l4];
-    const home = segmentFor(lines[1], 'GLEETCHING', 'home', '/', 1);
-    const context = state.contextHref ? segmentFor(lines[1], ctx.trim(), 'context', state.contextHref, 1) : null;
-    if (home) segments.push(home);
-    if (context) segments.push(context);
-    return { lines, segments, glyphSet };
+  if (narrow) {
+    const route = trunc(state.shortRoute, 5);
+    const ctx = trunc(state.contextLabel || 'ROOT', 10);
+    const top = framedBar(g, safeCols, '[DIR]', route);
+    const content = lineText(
+      `${g.v} `,
+      [
+        { text: 'GLEETCHING', href: '/', kind: 'accent' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: route, kind: 'plain' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: ctx, href: state.contextHref, kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: trunc(state.time, 8), kind: 'dim' }
+      ],
+      ` ${g.v}`,
+      safeCols
+    );
+    return { glyphSet, lines: [top, content] };
   }
 
-  if (width < 980) {
-    const nav = '[DIR] [ABT] [CNTCT] [ADM]';
-    const top = `${g.tl}${g.h.repeat(4)}${g.spark} GLEETCHING ${g.spark} ${fit(state.routeLabel, 18)} ${g.h.repeat(4)}${g.tr}`;
-    const mid = `${g.v} ${nav} ${g.fill} CTX:${fit(state.contextLabel || 'ROOT', 18)} ${g.fill} ${fit(state.time, 8)} ${g.v}`;
-    const bot = `${g.bl}${g.h.repeat(Math.max(top.length - 2, 2))}${g.br}`;
-    const lines = [fit(top, top.length), fit(mid, top.length), bot];
-    const map: Array<[string, string, string]> = [
-      ['DIR', '/', 'home'],
-      ['ABT', '/about', 'about'],
-      ['CNTCT', '/contact', 'contact'],
-      ['ADM', '/admin', 'admin']
-    ];
-    map.forEach(([token, href, key]) => {
-      const s = segmentFor(lines[1], token, key, href, 1);
-      if (s) segments.push(s);
-    });
-    if (state.contextHref) {
-      const ctxText = fit(state.contextLabel || 'ROOT', 18).trim();
-      const s = segmentFor(lines[1], ctxText, 'context', state.contextHref, 1);
-      if (s) segments.push(s);
-    }
-    return { lines, segments, glyphSet };
+  if (mid) {
+    const top = framedBar(g, safeCols, 'GLEETCHING', trunc(state.routeLabel, 18));
+    const navLine = lineText(
+      `${g.v} `,
+      [
+        { text: '[DIR]', href: '/', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ABT]', href: '/about', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[CNTCT]', href: '/contact', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ADM]', href: '/admin', kind: 'accent' },
+        { text: ` ${g.fill} CTX:`, kind: 'dim' },
+        { text: trunc(state.contextLabel || 'ROOT', 14), href: state.contextHref, kind: 'accent' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: trunc(state.time, 8), kind: 'plain' }
+      ],
+      ` ${g.v}`,
+      safeCols
+    );
+    const info = lineText(
+      `${g.bl}`,
+      [{ text: `${g.h}${g.h} STATUS:${trunc(state.status, 24)} ${g.h}${g.h}`, kind: 'dim' }],
+      `${g.br}`,
+      safeCols
+    );
+    return { glyphSet, lines: [top, navLine, info] };
   }
 
-  const nav = '[GLEETCHING] [ABOUT] [CONTACT] [ADMIN]';
-  const top = `${g.tl}${g.h.repeat(2)}${g.spark}${g.fill.repeat(2)} ARCHIVE.WORKSTATION ${g.fill.repeat(2)}${g.spark}${g.h.repeat(26)}${g.tr}`;
-  const mid = `${g.v} ${nav} ${g.fill} ROUTE:${fit(state.routeLabel, 20)} ${g.fill} CTX:${fit(state.contextLabel || 'ROOT', 24)} ${g.v}`;
-  const low = `${g.v} TIME:${fit(state.time, 8)} ${g.fill} STATUS:${fit(state.status, 28)} ${g.fill} LINK:STABLE ${g.v}`;
-  const bot = `${g.bl}${g.h.repeat(Math.max(top.length - 2, 2))}${g.br}`;
-  const lines = [fit(top, top.length), fit(mid, top.length), fit(low, top.length), bot];
-
-  const map: Array<[string, string, string]> = [
-    ['GLEETCHING', '/', 'home'],
-    ['ABOUT', '/about', 'about'],
-    ['CONTACT', '/contact', 'contact'],
-    ['ADMIN', '/admin', 'admin']
-  ];
-  map.forEach(([token, href, key]) => {
-    const s = segmentFor(lines[1], token, key, href, 1);
-    if (s) segments.push(s);
-  });
-  if (state.contextHref) {
-    const ctxText = fit(state.contextLabel || 'ROOT', 24).trim();
-    const s = segmentFor(lines[1], ctxText, 'context', state.contextHref, 1);
-    if (s) segments.push(s);
-  }
-
-  return { lines, segments, glyphSet };
+  const top = framedBar(g, safeCols, 'ARCHIVE.WORKSTATION', state.shortRoute);
+  const nav = lineText(
+    `${g.v} `,
+    [
+      { text: '[GLEETCHING]', href: '/', kind: 'accent' },
+      { text: ' ', kind: 'plain' },
+      { text: '[ABOUT]', href: '/about', kind: 'accent' },
+      { text: ' ', kind: 'plain' },
+      { text: '[CONTACT]', href: '/contact', kind: 'accent' },
+      { text: ' ', kind: 'plain' },
+      { text: '[ADMIN]', href: '/admin', kind: 'accent' },
+      { text: ` ${g.fill} CTX:`, kind: 'dim' },
+      { text: trunc(state.contextLabel || 'ROOT', 24), href: state.contextHref, kind: 'accent' }
+    ],
+    ` ${g.v}`,
+    safeCols
+  );
+  const detail = lineText(
+    `${g.v} `,
+    [
+      { text: `ROUTE:${trunc(state.routeLabel, 20)} `, kind: 'plain' },
+      { text: `${g.fill} `, kind: 'dim' },
+      { text: `TIME:${trunc(state.time, 8)} `, kind: 'plain' },
+      { text: `${g.fill} `, kind: 'dim' },
+      { text: `STATUS:${trunc(state.status, 30)}`, kind: 'plain' }
+    ],
+    ` ${g.v}`,
+    safeCols
+  );
+  const bottom = fitRuns([{ text: g.bl + g.h.repeat(Math.max(safeCols - 2, 0)) + g.br, kind: 'dim' }], safeCols);
+  return { glyphSet, lines: [top, nav, detail, bottom] };
 }
 
-export function renderBottomStrip(width: number, viewerOpen: boolean): BannerRender {
-  const base = symbols.pipe;
-  const segments: BannerSegment[] = [];
+export function renderBottomStrip(cols: number, viewerOpen: boolean): Banner {
+  const safeCols = Math.max(cols, 32);
+  const g = symbols.pipe;
+  const mobile = safeCols <= 64;
 
-  if (width < 760) {
-    const line = `${base.tl} TAP:[DIR][ABT][CNTCT][ADM] ${base.fill} ${viewerOpen ? 'SWIPE←/→ PIECES' : 'SWIPE TO BROWSE'} ${base.tr}`;
-    const bottom = `${base.bl}${base.h.repeat(Math.max(line.length - 2, 2))}${base.br}`;
-    const lines = [line, bottom];
-    [['DIR', '/'], ['ABT', '/about'], ['CNTCT', '/contact'], ['ADM', '/admin']].forEach(([token, href], i) => {
-      const s = segmentFor(lines[0], token, `b-${i}`, href, 0);
-      if (s) segments.push(s);
-    });
-    return { lines, segments, glyphSet: 'pipe' };
-  }
+  const navRuns: Run[] = mobile
+    ? [
+        { text: 'TAP:', kind: 'dim' },
+        { text: '[DIR]', href: '/', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ABT]', href: '/about', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[CNTCT]', href: '/contact', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ADM]', href: '/admin', kind: 'accent' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: viewerOpen ? 'SWIPE←/→' : 'SWIPE', kind: 'plain' }
+      ]
+    : [
+        { text: 'NAV:', kind: 'dim' },
+        { text: '[HOME]', href: '/', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ABOUT]', href: '/about', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[CONTACT]', href: '/contact', kind: 'accent' },
+        { text: ' ', kind: 'plain' },
+        { text: '[ADMIN]', href: '/admin', kind: 'accent' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: '↑↓ ENTER ESC', kind: 'plain' },
+        { text: ` ${g.fill} `, kind: 'dim' },
+        { text: viewerOpen ? 'SWIPE←/→ NEXT/PREV' : 'SCAN READY', kind: 'plain' }
+      ];
 
-  const line = `${base.tl} NAV:[HOME][ABOUT][CONTACT][ADMIN] ${base.fill} ↑↓ ENTER ESC ${base.fill} ${viewerOpen ? 'SWIPE←/→ NEXT/PREV' : 'SCAN READY'} ${base.tr}`;
-  const bottom = `${base.bl}${base.h.repeat(Math.max(line.length - 2, 2))}${base.br}`;
-  const lines = [line, bottom];
-  [['HOME', '/'], ['ABOUT', '/about'], ['CONTACT', '/contact'], ['ADMIN', '/admin']].forEach(([token, href], i) => {
-    const s = segmentFor(lines[0], token, `b-${i}`, href, 0);
-    if (s) segments.push(s);
-  });
-
-  return { lines, segments, glyphSet: 'pipe' };
+  const line1 = lineText(`${g.tl} `, navRuns, ` ${g.tr}`, safeCols);
+  const line2 = fitRuns([{ text: g.bl + g.h.repeat(Math.max(safeCols - 2, 0)) + g.br, kind: 'dim' }], safeCols);
+  return { glyphSet: 'pipe', lines: [line1, line2] };
 }

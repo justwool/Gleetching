@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { renderBottomStrip, renderTopBanner, type ChromeContextState } from '@/lib/chrome/banner';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { renderBottomStrip, renderTopBanner, type ChromeContextState, type Run } from '@/lib/chrome/banner';
 
 type Props = { children: React.ReactNode };
 
@@ -24,24 +24,18 @@ const routeMap: Record<string, { full: string; short: string }> = {
   '/admin': { full: 'admin/transfer', short: 'ADM' }
 };
 
-function OverlayLinks({ segments, lineHeight, enlarge = false }: { segments: Array<{ key: string; href: string; row: number; colStart: number; colEnd: number }>; lineHeight: number; enlarge?: boolean }) {
+function RunLine({ runs }: { runs: Run[] }) {
   return (
-    <>
-      {segments.map((segment) => (
-        <Link
-          aria-label={`navigate-${segment.key}`}
-          key={segment.key}
-          href={segment.href}
-          className="chrome-link-overlay"
-          style={{
-            top: `calc(${segment.row * lineHeight}em ${enlarge ? '- 0.2em' : ''})`,
-            left: `${segment.colStart}ch`,
-            width: `${Math.max(segment.colEnd - segment.colStart, 4)}ch`,
-            height: `calc(${lineHeight}em ${enlarge ? '+ 0.4em' : ''})`
-          }}
-        />
-      ))}
-    </>
+    <div className="chrome-line">
+      {runs.map((run, index) => {
+        const className = `chrome-run chrome-${run.kind ?? 'plain'}`;
+        return run.href ? (
+          <Link key={`${run.text}-${index}`} href={run.href} className={`${className} chrome-link`}>{run.text}</Link>
+        ) : (
+          <span key={`${run.text}-${index}`} className={className}>{run.text}</span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -49,8 +43,10 @@ export function SystemChrome({ children }: Props) {
   const pathname = usePathname();
   const [clock, setClock] = useState('00:00:00');
   const [status, setStatus] = useState('State stable');
-  const [width, setWidth] = useState(1200);
+  const [cols, setCols] = useState(120);
   const [ctx, setCtx] = useState<ContextPatch>({});
+  const topWrapRef = useRef<HTMLDivElement>(null);
+  const probeRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date().toLocaleTimeString('en-GB', { hour12: false })), 1000);
@@ -58,10 +54,26 @@ export function SystemChrome({ children }: Props) {
   }, []);
 
   useEffect(() => {
-    const resize = () => setWidth(window.innerWidth);
-    resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+    const measure = () => {
+      const wrap = topWrapRef.current;
+      const probe = probeRef.current;
+      if (!wrap || !probe) return;
+      const containerWidthPx = wrap.getBoundingClientRect().width;
+      const probeWidthPx = probe.getBoundingClientRect().width;
+      const charWidthPx = probeWidthPx > 0 ? probeWidthPx / 10 : 8;
+      setCols(Math.max(32, Math.floor(containerWidthPx / Math.max(charWidthPx, 1))));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (topWrapRef.current) observer.observe(topWrapRef.current);
+    document.fonts?.ready.then(measure).catch(() => null);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   useEffect(() => {
@@ -96,24 +108,22 @@ export function SystemChrome({ children }: Props) {
     time: clock
   };
 
-  const top = renderTopBanner(width, chromeState);
-  const bottom = renderBottomStrip(width, pathname.startsWith('/viewer/'));
-  const lineHeight = 1.2;
+  const top = renderTopBanner(cols, chromeState);
+  const bottom = renderBottomStrip(cols, pathname.startsWith('/viewer/'));
 
   return (
     <ChromeCtx.Provider value={{ setContext }}>
       <div className="chrome-shell" style={{ ['--chrome-accent' as string]: ctx.accentColor ?? '#8eb8b8' }}>
         <header className={`chrome-top glyph-${top.glyphSet}`}>
-          <div className="chrome-pre-wrap">
-            <pre className="chrome-pre">{top.lines.join('\n')}</pre>
-            <OverlayLinks segments={top.segments} lineHeight={lineHeight} enlarge={width < 760} />
+          <div className="chrome-lines-wrap" ref={topWrapRef}>
+            <span className="chrome-probe" ref={probeRef} aria-hidden>MMMMMMMMMM</span>
+            {top.lines.map((line, idx) => <RunLine key={`top-${idx}`} runs={line} />)}
           </div>
         </header>
         <main className="mainpane">{children}</main>
         <footer className="chrome-bottom">
-          <div className="chrome-pre-wrap">
-            <pre className="chrome-pre">{bottom.lines.join('\n')}</pre>
-            <OverlayLinks segments={bottom.segments} lineHeight={lineHeight} enlarge />
+          <div className="chrome-lines-wrap">
+            {bottom.lines.map((line, idx) => <RunLine key={`bottom-${idx}`} runs={line} />)}
           </div>
         </footer>
       </div>
