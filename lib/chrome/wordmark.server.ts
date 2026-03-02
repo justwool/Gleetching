@@ -5,7 +5,7 @@ import StandardFont from 'figlet/importable-fonts/Standard.js';
 import SlantFont from 'figlet/importable-fonts/Slant.js';
 import BigFont from 'figlet/importable-fonts/Big.js';
 import MiniFont from 'figlet/importable-fonts/Mini.js';
-import { normalizeFont, SAFE_FONTS, type SafeFont } from '@/lib/chrome/fonts';
+import { normalizeFont, type SafeFont } from '@/lib/chrome/fonts';
 
 figlet.parseFont('Small', SmallFont as unknown as string);
 figlet.parseFont('Standard', StandardFont as unknown as string);
@@ -21,30 +21,22 @@ function normalize(lines: string[]) {
   return out;
 }
 
-function renderWithFont(text: string, font: SafeFont) {
-  return normalize(figlet.textSync(text, { font }).split('\n'));
-}
-
-export function renderWordmark(text: string, fontName: string, maxWidthChars: number): string[] {
-  if (maxWidthChars < 20) return [FALLBACK];
-  if (maxWidthChars < 55) return [FALLBACK];
-
-  const chosen = maxWidthChars >= 80 ? normalizeFont(fontName) : 'Small';
-  const fallbackOrder: SafeFont[] = [chosen, 'Small', 'Mini', 'Standard'];
-
-  for (const font of fallbackOrder) {
-    if (!SAFE_FONTS.includes(font)) continue;
-    const lines = renderWithFont(text, font).slice(0, 5);
-    if (lines.length > 0 && lines.every((line) => line.length <= maxWidthChars)) return lines;
+export function renderWordmark(text: string, fontName: string): string[] {
+  const chosen = normalizeFont(fontName);
+  const order: SafeFont[] = [chosen, 'Small', 'Mini', 'Standard', 'Slant', 'Big'];
+  for (const font of order) {
+    try {
+      const lines = normalize(figlet.textSync(text, { font }).split('\n'));
+      if (lines.length > 0) return lines;
+    } catch {
+      continue;
+    }
   }
-
   return [FALLBACK];
 }
 
-export function renderWordmarkVariants(text: string, fontName: string) {
-  return {
-    wide: renderWordmark(text, fontName, 80),
-    mid: renderWordmark(text, fontName, 55),
-    narrow: renderWordmark(text, fontName, 40)
-  };
+export function wordmarkMetrics(lines: string[]) {
+  const wmRows = Math.max(lines.length, 1);
+  const wmCols = Math.max(...lines.map((line) => line.length), FALLBACK.length);
+  return { wmRows, wmCols };
 }

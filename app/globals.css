@@ -1,4 +1,3 @@
-
 :root {
   --bg: #1a1d1f;
   --fg: #d6ddd8;
@@ -23,24 +22,48 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--divider);
   color: var(--chrome-accent);
 }
-.chrome-top { top: 0; }
+.chrome-top { top: 0; display: flex; align-items: stretch; }
 .chrome-bottom { bottom: 0; }
-.chrome-top-grid {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
-  align-items: start;
+
+.chrome-top-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
+.chrome-top-inner {
+  display: flex;
+  align-items: stretch;
   width: 100%;
-  min-width: 0;
-  padding: 0.25rem 0.45rem;
+  min-width: 100%;
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: var(--chrome-font-size);
   line-height: var(--chrome-line-height);
   white-space: pre;
-  overflow: hidden;
 }
-.chrome-left { white-space: pre; }
-.chrome-center { min-width: 0; overflow: hidden; }
+.chrome-leftFill {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--padY) 10px;
+  gap: 4px;
+}
+.wordmarkWrap {
+  flex: 0 0 auto;
+  padding: var(--padY) 10px;
+  display: flex;
+  align-items: flex-start;
+}
+.wordmarkSlot {
+  white-space: pre;
+  overflow: visible;
+  max-width: 100%;
+  color: var(--chrome-accent);
+}
+.wordmarkSlot pre {
+  white-space: pre;
+  margin: 0;
+  line-height: 1em;
+  font-size: inherit;
+}
+
 .chrome-lines-wrap {
   position: relative;
   width: 100%;
@@ -52,30 +75,6 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0;
   white-space: pre;
 }
-.wordmarkSlot {
-  min-width: 0;
-  overflow: hidden;
-  white-space: pre;
-  text-align: right;
-  color: var(--chrome-accent);
-  max-height: calc(var(--chrome-line-height) * 1em * 5);
-}
-.wordmarkSlot pre {
-  margin: 0;
-  line-height: 1;
-  white-space: pre;
-}
-
-.wordmarkVariant { display: none; }
-.wordmarkWide { display: block; }
-@media (max-width: 899px) {
-  .wordmarkWide { display: none; }
-  .wordmarkMid { display: block; }
-}
-@media (max-width: 549px) {
-  .wordmarkMid { display: none; }
-  .wordmarkNarrow { display: block; }
-}
 .chrome-line { display: block; white-space: pre; overflow: hidden; text-overflow: clip; }
 .chrome-run { white-space: pre; }
 .chrome-link { text-decoration: none; color: inherit; }
@@ -83,9 +82,9 @@ a { color: inherit; text-decoration: none; }
 .chrome-accent { color: var(--chrome-accent); }
 .chrome-dim { color: color-mix(in srgb, var(--fg) 74%, var(--chrome-accent) 26%); }
 .chrome-plain { color: var(--fg); }
-.mainpane { padding: 98px 8px 52px; min-height: 100vh; }
+.mainpane { padding: calc(var(--topH, 98px) + 10px) 8px 52px; min-height: 100vh; }
 
-.frame { border: 1px solid var(--divider); padding: 8px; min-height: calc(100vh - 156px); position: relative; }
+.frame { border: 1px solid var(--divider); padding: 8px; min-height: calc(100vh - 168px); position: relative; }
 .frame::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
 h1,h2,h3,p { margin: 0; }
 .table-head, .table-row { display: grid; grid-template-columns: 40px 90px 1.6fr 70px 70px 1fr; gap: 10px; padding: 5px 2px; align-items: center; }
@@ -118,9 +117,7 @@ button:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); 
 
 @media (max-width: 540px) {
   :root { --chrome-font-size: 10px; }
-  .chrome-top-grid { grid-template-columns: auto 1fr auto; }
-  .wordmarkSlot { max-width: 12ch; }
-  .mainpane { padding-top: 88px; padding-bottom: 56px; }
+  .mainpane { padding-top: 104px; padding-bottom: 56px; }
   .table-head, .table-row { grid-template-columns: 30px 70px 1fr 44px 44px 70px; gap: 6px; font-size: 11px; }
   .scanrow { grid-template-columns: 52px 70px 104px 90px 1fr; font-size: 11px; }
 }

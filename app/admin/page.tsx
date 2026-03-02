@@ -11,6 +11,8 @@ export default function AdminPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [log, setLog] = useState<string[]>(['transfer utility booted']);
   const [figletFont, setFigletFont] = useState<string>('Small');
+  const [wordmarkPlacement, setWordmarkPlacement] = useState<string>('RIGHT');
+  const [wordmarkBarFollowsFiglet, setWordmarkBarFollowsFiglet] = useState<boolean>(true);
 
   const append = (line: string) => setLog((lines) => [line, ...lines].slice(0, 100));
 
@@ -24,6 +26,8 @@ export default function AdminPage() {
       if (settings.ok) {
         const settingPayload = await settings.json();
         setFigletFont(settingPayload.figletFont || 'Small');
+        setWordmarkPlacement(settingPayload.wordmarkPlacement || 'RIGHT');
+        setWordmarkBarFollowsFiglet(settingPayload.wordmarkBarFollowsFiglet ?? true);
       }
     }
   };
@@ -77,6 +81,9 @@ export default function AdminPage() {
       return;
     }
     append(`OK figlet font set ${nextFont}`);
+    const payload = await res.json();
+    setWordmarkPlacement(payload.wordmarkPlacement || 'RIGHT');
+    setWordmarkBarFollowsFiglet(payload.wordmarkBarFollowsFiglet ?? true);
     window.dispatchEvent(new CustomEvent('figlet-font-change', { detail: { figletFont: nextFont } }));
   };
 
@@ -91,11 +98,13 @@ export default function AdminPage() {
       ) : null}
 
       {auth ? (
-        <div style={{ margin: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label htmlFor="figletFont">FIGlet Wordmark Font</label>
+        <div style={{ margin: '8px 0', display: 'grid', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><label htmlFor="figletFont">FIGlet Wordmark Font</label>
           <select id="figletFont" value={figletFont} onChange={(e) => updateFont(e.target.value)}>
             {SAFE_FONTS.map((font) => <option key={font} value={font}>{font}</option>)}
-          </select>
+          </select></div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><label>Wordmark Placement</label><input value={wordmarkPlacement} readOnly /></div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><label>Bar Follows FIGlet</label><input value={wordmarkBarFollowsFiglet ? 'true' : 'false'} readOnly /></div>
         </div>
       ) : null}
 

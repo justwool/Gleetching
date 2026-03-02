@@ -54,7 +54,9 @@ model Session {
 
 
 model SiteSettings {
-  id         Int      @id @default(1)
-  figletFont String   @default("Small")
-  updatedAt  DateTime @updatedAt
+  id                      Int      @id @default(1)
+  figletFont              String   @default("Small")
+  wordmarkPlacement       String   @default("RIGHT")
+  wordmarkBarFollowsFiglet Boolean @default(true)
+  updatedAt               DateTime @updatedAt
 }
